@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Asistencia Reunión</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial; text-align: center; padding: 20px; background:#f5f5f5; }
+    .card { background:white; padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); max-width:400px; margin:auto; }
+    input, button { width:100%; padding:10px; margin-top:10px; }
+    button { background:#2d2f55; color:white; border:none; cursor:pointer; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Registro de Asistencia</h2>
+  <input type="text" id="nombre" placeholder="Nombre completo" required>
+  <button onclick="registrar()">Marcar asistencia</button>
+  <p id="estado"></p>
+</div>
+
+<script>
+const EVENT_LAT = -34.9011;
+const EVENT_LON = -56.1645;
+const RADIO_METROS = 100;
+
+function distancia(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c;
+}
+
+function registrar() {
+  const nombre = document.getElementById("nombre").value;
+  const estado = document.getElementById("estado");
+
+  if (!nombre) {
+    estado.innerText = "Ingresá tu nombre";
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    estado.innerText = "GPS no soportado";
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+
+    const dist = distancia(lat, lon, EVENT_LAT, EVENT_LON);
+
+    if (dist > RADIO_METROS) {
+      estado.innerText = "❌ Fuera de la ubicación permitida";
+      return;
+    }
+
+    const ahora = new Date();
+    const hora = ahora.getHours();
+
+    if (hora < 18 || hora > 20) {
+      estado.innerText = "⏰ Fuera del horario permitido";
+      return;
+    }
+
+    let registros = JSON.parse(localStorage.getItem("asistencia") || "[]");
+
+    if (registros.find(r => r.nombre === nombre)) {
+      estado.innerText = "⚠️ Ya registraste asistencia";
+      return;
+    }
+
+    registros.push({ nombre, lat, lon, fecha: ahora });
+    localStorage.setItem("asistencia", JSON.stringify(registros));
+
+    estado.innerText = "✅ Asistencia registrada correctamente";
+  }, () => {
+    estado.innerText = "Error obteniendo ubicación";
+  });
+}
+</script>
+
+</body>
+</html>
